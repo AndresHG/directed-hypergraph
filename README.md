@@ -14,8 +14,16 @@ they work!).
 
 ## Main concepts
 
-* Search Optimization:
-* Parameter checking:
+* Search Optimization: Implemented using Facebook `FAISS` as index and updating
+some data structures (mostly edges).
+* Parameter checking: Plan here is to do the following checks
+  * Check not null values and empty strings
+  * Check data types are correct (like integer for `top_k`)
+  * Check that no source node is also present as target node
+  * For scenarios where there are no related concepts, we can set a threshold 
+  on similarity
+  * On concepts: clean punctuation, stripe spaces and odd characters,
+  some general regex cleanup
 * Storage: For storage I propose to use the incidence matrix H where we 
 can represent for each pair of node-edge how they are related. 
   * Matrix values would be: 1 if the node is a source of the edge, 0 if 

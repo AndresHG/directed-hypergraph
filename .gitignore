@@ -1,0 +1,9 @@
+# Pycharm files
+.idea/
+
+# Cache files
+__pycache__/
+
+# Test files
+faiss_test.py
+hypergraph2_single_target.py

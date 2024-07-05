@@ -7,3 +7,7 @@ __pycache__/
 # Test files
 faiss_test.py
 hypergraph2_single_target.py
+
+# Ignore output files
+*_data.json
+*.npy

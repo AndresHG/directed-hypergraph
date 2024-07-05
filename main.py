@@ -30,3 +30,5 @@ if __name__ == "__main__":
     # Retrieve information
     result = rag_system.retrieve("Web framework")
     print(result)
+
+    hypergraph.save("incidence_matrix.npy", "nodes_data.json", "edges_data.json")

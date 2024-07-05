@@ -6,15 +6,17 @@
 
 import faiss
 from sentence_transformers import SentenceTransformer
+import numpy as np
 
 import uuid
+import json
 from typing import Dict, Set, Tuple
 
 from helper_functions import clean_string
 
 
 class Node:
-    def __init__(self, data: str):
+    def __init__(self, data: str, node_number: int):
         """Create a node.
 
         Reference in retrival function of the RAGSystem: A potential change
@@ -26,9 +28,12 @@ class Node:
 
         :param data: The information stored in the node
         :type data: str
+        :param node_number: The number of the node that will be used for positioning
+        :type node_number: int
         """
         self.id = uuid.uuid4()
         self.data = data
+        self.node_number = node_number
 
 
 class Hyperedge:
@@ -74,8 +79,42 @@ class Hypergraph:
         self._index = faiss.IndexFlatL2(d)
         self._index_objs = []
 
-    def save(self, path: str):
-        pass
+    def save(
+        self, incidence_matrix_path: str, nodes_data_path: str, edges_data_path: str
+    ):
+        """Save to disk function. This way, we can store the whole graph and the
+        information. We could also use `pickle.dump()` to store the list of strings
+        for nodes and edges, but for a small problem this one looks good.
+
+        :param incidence_matrix_path: Path for incidence matrix output file
+        :type incidence_matrix_path: str
+        :param nodes_data_path: Path for nodes data output json
+        :type nodes_data_path: str
+        :param edges_data_path: Path for edges relationships data output json
+        :type edges_data_path: str
+        """
+        H = np.zeros(shape=(self.n_nodes, self.n_edges))
+
+        edge_pos = 0
+        for _, edge in self.edges.items():
+            for node in edge.sources:
+                H[node.node_number][edge_pos] = 1
+            for node in edge.targets:
+                H[node.node_number][edge_pos] = -1
+
+            # Update index for edges
+            edge_pos += 1
+
+        # Save the matrix to file
+        np.save(incidence_matrix_path, H)
+
+        # Save nodes data
+        with open(nodes_data_path, "w") as fp:
+            json.dump([node.data for _, node in self.nodes.items()], fp, indent=2)
+
+        # Save edges relationships
+        with open(edges_data_path, "w") as fp:
+            json.dump([edge.relation for _, edge in self.edges.items()], fp, indent=2)
 
     def add_node(self, data: str) -> Node:
         """Add the node to the hypergraph. If it already exists, return the
@@ -89,7 +128,7 @@ class Hypergraph:
         D, I = self._index.search(self.transformer.encode([data]), 1)
         # TODO: improve this. It is an arbitrary number that rounded will be 0
         if D[0][0] > 0.0001:  # Node doesn't exist yet
-            node = Node(data)
+            node = Node(data, self.n_nodes)
             self.nodes[node.id] = node
 
             # Add new entry to the index
@@ -135,6 +174,10 @@ class Hypergraph:
         # Update index amd index_objs
         self._index.add(self.transformer.encode([index_term]))
         self._index_objs.append(edge)
+
+        # Update number of edges
+        self.n_edges += 1
+
         return edge
 
     def query(self, criteria: str, top_k: int = 4) -> Tuple[Set[Node], Set[Hyperedge]]:

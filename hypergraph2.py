@@ -10,6 +10,8 @@ from sentence_transformers import SentenceTransformer
 import uuid
 from typing import Dict, Set, Tuple
 
+from helper_functions import clean_string
+
 
 class Node:
     def __init__(self, data: str):
@@ -62,12 +64,18 @@ class Hypergraph:
         self.nodes: Dict[uuid.UUID, Node] = {}
         self.edges: Dict[uuid.UUID, Hyperedge] = {}
 
+        self.n_nodes = 0
+        self.n_edges = 0
+
         self.transformer = SentenceTransformer("bert-base-nli-mean-tokens")
         sentence_embeddings = self.transformer.encode(["Dummy text", "Dummy 2"])
         d = sentence_embeddings.shape[1]
 
         self._index = faiss.IndexFlatL2(d)
         self._index_objs = []
+
+    def save(self, path: str):
+        pass
 
     def add_node(self, data: str) -> Node:
         """Add the node to the hypergraph. If it already exists, return the
@@ -80,12 +88,17 @@ class Hypergraph:
         """
         D, I = self._index.search(self.transformer.encode([data]), 1)
         # TODO: improve this. It is an arbitrary number that rounded will be 0
-        if D[0][0] > 0.0001:  # Node exist already
+        if D[0][0] > 0.0001:  # Node doesn't exist yet
             node = Node(data)
             self.nodes[node.id] = node
 
-            self._index.add(self.transformer.encode([data]))
+            # Add new entry to the index
+            index_string = clean_string(data)
+            self._index.add(self.transformer.encode([index_string]))
             self._index_objs.append(node)
+
+            # Update count of nodes
+            self.n_nodes += 1
         else:
             # Get the first and only item of the index
             node = self._index_objs[I[0][0]]
@@ -112,11 +125,11 @@ class Hypergraph:
         # We are adding one index per target. Reason why is: OOP is related to Python
         # but OOP is not related to interpreted. So targets should be separated
         index_term = (
-            ", ".join([node.data for node in sources])
+            ", ".join([clean_string(node.data) for node in sources])
             + " - "
             + relation
             + " - "
-            + ", ".join([node.data for node in targets])
+            + ", ".join([clean_string(node.data) for node in targets])
         )
 
         # Update index amd index_objs

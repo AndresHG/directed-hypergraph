@@ -5,8 +5,11 @@
 # @Time:        7/4/24 1:06 AM
 
 
-from hypergraph2 import Hypergraph
 from typing import List
+from parameters_validation import validate_parameters, non_blank
+
+from hypergraph2 import Hypergraph
+from helper_functions import clean_string
 
 
 class RAGSystem:
@@ -18,8 +21,9 @@ class RAGSystem:
         """
         self.hypergraph = hypergraph
 
+    @validate_parameters
     def add_knowledge(
-        self, concepts: List[str], related_concepts: List[str], relation: str
+        self, concepts: List[str], related_concepts: List[str], relation: non_blank(str)
     ):
         """Add knowledge to the hypergraph using the object API. We assume that
         knowledge will always come from concepts relationships.
@@ -34,7 +38,6 @@ class RAGSystem:
         :param relation: Actual relationship between all the concepts
         :type relation: str
         """
-        # TODO: validate no duplicates and so on
         # Default checks for input data
         if (
             not concepts
@@ -45,6 +48,16 @@ class RAGSystem:
             or len(related_concepts) == 0
         ):
             return
+
+        # Clean input related_concepts strings to validate correctly
+        clean_related_concepts = list(map(clean_string, related_concepts))
+
+        # Validate no repeated concepts in source-target
+        if any(
+            [clean_string(concept) in clean_related_concepts for concept in concepts]
+        ):
+            raise Exception("A concept can not be twice in source-target relationship.")
+
         # Loop over the source concepts to create nodes
         sources = set()
         for s_concept in concepts:
@@ -59,7 +72,8 @@ class RAGSystem:
         self.hypergraph.add_edge(sources, targets, relation)
         return
 
-    def retrieve(self, query: str, top_k=4) -> str:
+    @validate_parameters
+    def retrieve(self, query: non_blank(str), top_k=4) -> str:
         """Search in the hypergraph for the relevant information/concepts
         and their relationships with other concepts.
 
@@ -82,6 +96,9 @@ class RAGSystem:
         :return: String in Markdown format with all the information found in the hypergraph
         :rtype: str
         """
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise Exception("Parameter `top_k` should be a non-negative integer.")
+
         # Find nodes in the graph based on the query
         nodes, edges = self.hypergraph.query(query, top_k=top_k)
 
